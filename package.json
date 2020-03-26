@@ -1,0 +1,27 @@
+{
+  "name": "mocha-suppress-stdout",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "compile+test": "tsc && npm run test",
+    "compile+sample": "tsc && npm run sample",
+    "compile": "tsc",
+    "test": "mocha test/run.js",
+    "sample": "mocha --reporter reporter.js test/sample.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mocha": "^7.1.1"
+  },
+  "devDependencies": {
+    "@types/mocha": "^7.0.2",
+    "@types/node": "^13.9.3",
+    "@types/sinon": "^7.5.2",
+    "prettier": "^2.0.1",
+    "sinon": "^9.0.1",
+    "snap-shot-it": "^7.9.3",
+    "typescript": "^3.8.3"
+  }
+}
