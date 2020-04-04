@@ -43,7 +43,7 @@ context("Suite with beforeEach", () => {
   });
 });
 
-context.only("Suite with before", () => {
+context("Suite with before", () => {
   before(() => {
     console.log("before test");
   });
@@ -59,7 +59,7 @@ context.only("Suite with before", () => {
   });
 });
 
-context.only("Suite with before and nested context", () => {
+context("Suite with before and nested context", () => {
   before(() => {
     console.log("Root before");
   });
@@ -77,6 +77,46 @@ context.only("Suite with before and nested context", () => {
   context("nested context", () => {
     before(() => {
       console.log("Nested before");
+    });
+
+    it("Nested fails 1", () => {
+      console.log("Nested fail 1");
+      throw Error("Sample error");
+    });
+
+    it("Nested fails 2", () => {
+      console.log("Nested fail 2");
+      throw Error("Sample error");
+    });
+  });
+});
+
+context("Suite with before and nested context", () => {
+  before(() => {
+    console.log("Root before");
+  });
+
+  beforeEach(() => {
+    console.log("Root before each");
+  });
+
+  it("Fails 1", () => {
+    console.log("Fail 1");
+    throw Error("Sample error");
+  });
+
+  it("Fails 2", () => {
+    console.log("Fail 2");
+    throw Error("Sample error");
+  });
+
+  context("nested context", () => {
+    before(() => {
+      console.log("Nested before");
+    });
+
+    beforeEach(() => {
+      console.log("Nested before each");
     });
 
     it("Nested fails 1", () => {

@@ -49,7 +49,12 @@ type TestCapture = {
   testLogs: CapturedLog[];
 };
 
+// TODO: class
 const stubLogs = () => {
+  let mockDepth = 0;
+  let isTestCapture = false;
+  let beforeEach: HookLogs[] = [];
+
   const suiteHooksLogs: HookLogs[][] = [];
 
   const stdoutWrite = process.stdout.write;
@@ -71,14 +76,23 @@ const stubLogs = () => {
   };
 
   const restore = () => {
-    process.stdout.write = stdoutWrite;
-    process.stderr.write = stderrWrite;
+    mockDepth -= 1;
+
+    if (!mockDepth) {
+      process.stdout.write = stdoutWrite;
+      process.stderr.write = stderrWrite;
+    }
+
     calls = [];
   };
 
   const mock = () => {
-    process.stdout.write = mockWrite("stdout");
-    process.stderr.write = mockWrite("stderr");
+    if (!mockDepth) {
+      process.stdout.write = mockWrite("stdout");
+      process.stderr.write = mockWrite("stderr");
+    }
+
+    mockDepth += 1;
   };
 
   return {
@@ -89,31 +103,46 @@ const stubLogs = () => {
       suiteHooksLogs.push([]);
     },
     captureHook: (hook: Mocha.Hook) => {
-      const suite = suiteHooksLogs.slice(-1)[0];
+      if (!isTestCapture) {
+        const suite = suiteHooksLogs.slice(-1)[0];
 
-      suite.push({ hook, logs: [] });
+        suite.push({ hook, logs: [] });
+      } else {
+        beforeEach.push({ hook, logs: [] });
+      }
 
       mock();
     },
     stopHookCapture: () => {
-      const suite = suiteHooksLogs.slice(-1)[0];
-      const hook = suite.slice(-1)[0];
+      if (!isTestCapture) {
+        const suite = suiteHooksLogs.slice(-1)[0];
+        const hook = suite.slice(-1)[0];
 
-      hook.logs = calls;
+        hook.logs = calls;
+      } else {
+        const hook = beforeEach.slice(-1)[0];
+        hook.logs = calls;
+      }
 
       restore();
     },
     captureTest: () => {
+      isTestCapture = true;
+
       mock();
     },
     stopTestCapture: (): TestCapture => {
+      isTestCapture = false;
+
       const testLogs = calls;
 
       restore();
 
-      console.log({ suiteHooksLogs, testLogs });
+      const hooks = ([] as any[])
+        .concat(...suiteHooksLogs)
+        .concat(...beforeEach);
 
-      const hooks = ([] as any[]).concat(...suiteHooksLogs);
+      beforeEach = [];
 
       return {
         hooks,
@@ -256,37 +285,46 @@ function showCapturedOutput(captured: TestCapture) {
     indent +
     (log.kind === "stdout" ? log.text : color("error message", log.text));
 
+  const formatLogs = (logs: CapturedLog[]) => {
+    const endsWithNewline = logs.slice(-1)[0].text.endsWith("\n");
+    const joined = logs.map(formatLog).join("");
+
+    return joined.slice(0, joined.length - Number(endsWithNewline));
+  };
+
   const hasHookLogs = captured.hooks.find((h) => h.logs.length);
   const hasTestLogs = !!captured.testLogs.length;
 
   if (hasHookLogs) {
-    Base.consoleLog(
-      ...captured.hooks.map(({ hook, logs }) =>
+    captured.hooks.forEach(({ hook, logs }) => {
+      Base.consoleLog(
         [
           indent +
             color(
               infoColor,
-              `Captured hook output (${hook.title} of "${
+              `Captured output of ${hook.title} in "${
                 hook.parent?.title || "root"
               }")\n`
             ),
-          logs.map(formatLog).join(""),
+          formatLogs(logs),
         ].join("")
-      )
-    );
+      );
+    });
   }
 
   if (hasTestLogs) {
     Base.consoleLog(
       [
-        indent + color("error stack", "Captured test output:\n"),
-        captured.testLogs.map(formatLog).join(""),
+        indent + color("error stack", "Captured test output\n"),
+        formatLogs(captured.testLogs),
       ].join("")
     );
   }
 
   if (hasHookLogs || hasTestLogs) {
-    Base.consoleLog(indent + color("error stack", "End captured output"));
+    Base.consoleLog(indent + color(infoColor, "End captured output"));
+  } else {
+    Base.consoleLog(indent + color(infoColor, "No captured output"));
   }
 }
 
