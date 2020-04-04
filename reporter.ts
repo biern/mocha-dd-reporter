@@ -285,40 +285,27 @@ function showCapturedOutput(captured: TestCapture) {
     indent +
     (log.kind === "stdout" ? log.text : color("error message", log.text));
 
-  const formatLogs = (logs: CapturedLog[]) => {
-    const endsWithNewline = logs.slice(-1)[0].text.endsWith("\n");
-    const joined = logs.map(formatLog).join("");
-
-    return joined.slice(0, joined.length - Number(endsWithNewline));
-  };
-
   const hasHookLogs = captured.hooks.find((h) => h.logs.length);
   const hasTestLogs = !!captured.testLogs.length;
 
   if (hasHookLogs) {
     captured.hooks.forEach(({ hook, logs }) => {
-      Base.consoleLog(
-        [
-          indent +
-            color(
-              infoColor,
-              `Captured output of ${hook.title} in "${
-                hook.parent?.title || "root"
-              }")\n`
-            ),
-          formatLogs(logs),
-        ].join("")
+      process.stdout.write(
+        indent +
+          color(
+            infoColor,
+            `Captured output of ${hook.title} in "${
+              hook.parent?.title || "root"
+            }")\n`
+          )
       );
+      logs.forEach((l) => process.stdout.write(formatLog(l)));
     });
   }
 
   if (hasTestLogs) {
-    Base.consoleLog(
-      [
-        indent + color("error stack", "Captured test output\n"),
-        formatLogs(captured.testLogs),
-      ].join("")
-    );
+    process.stdout.write(indent + color(infoColor, "Captured test output\n"));
+    captured.testLogs.forEach((l) => process.stdout.write(formatLog(l)));
   }
 
   if (hasHookLogs || hasTestLogs) {
