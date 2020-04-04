@@ -21,8 +21,6 @@ const Spec: any = require("mocha/lib/reporters/spec");
 const milliseconds = require("ms");
 const color = Base.color;
 
-// snapshot test by running a process and showing output diff
-
 const {
   EVENT_RUN_BEGIN,
   EVENT_RUN_END,
@@ -151,7 +149,7 @@ const stubLogs = () => {
   };
 };
 
-class MyReporter extends Spec {
+class DDReporter extends Spec {
   epilogue() {
     epilogue(this, this.failuresLogs);
   }
@@ -348,4 +346,4 @@ function epilogue(report: any, capturedLogs: TestCapture[]) {
   Base.consoleLog();
 }
 
-export = MyReporter;
+export = DDReporter;
