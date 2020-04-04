@@ -222,9 +222,9 @@ function showCapturedOutput(captured: TestCapture) {
   }
 
   if (hasHookLogs || hasTestLogs) {
-    Base.consoleLog(indent + color(infoColor, "End captured output"));
+    process.stdout.write(indent + color(infoColor, "End captured output\n"));
   } else {
-    Base.consoleLog(indent + color(infoColor, "No captured output"));
+    process.stdout.write(indent + color(infoColor, "No captured output\n"));
   }
 }
 
