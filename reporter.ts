@@ -34,17 +34,28 @@ const {
   EVENT_TEST_PASS,
   EVENT_SUITE_BEGIN,
   EVENT_SUITE_END,
+  EVENT_HOOK_BEGIN,
+  EVENT_HOOK_END,
 } = Mocha.Runner.constants;
 
 type CapturedLog =
   | { kind: "stdout"; text: string }
   | { kind: "stderr"; text: string };
 
+type HookLogs = { hook: Mocha.Hook; logs: CapturedLog[] };
+
+type TestCapture = {
+  hooks: HookLogs[];
+  testLogs: CapturedLog[];
+};
+
 const stubLogs = () => {
-  const calls: CapturedLog[] = [];
+  const suiteHooksLogs: HookLogs[][] = [];
 
   const stdoutWrite = process.stdout.write;
   const stderrWrite = process.stderr.write;
+
+  let calls: CapturedLog[] = [];
 
   const mockWrite = (kind: CapturedLog["kind"]) => (
     buffer: Uint8Array,
@@ -62,15 +73,53 @@ const stubLogs = () => {
   const restore = () => {
     process.stdout.write = stdoutWrite;
     process.stderr.write = stderrWrite;
-    return calls;
+    calls = [];
   };
 
-  process.stdout.write = mockWrite("stdout");
-  process.stderr.write = mockWrite("stderr");
+  const mock = () => {
+    process.stdout.write = mockWrite("stdout");
+    process.stderr.write = mockWrite("stderr");
+  };
 
   return {
-    calls,
-    restore,
+    popSuite: () => {
+      suiteHooksLogs.pop();
+    },
+    pushSuite: () => {
+      suiteHooksLogs.push([]);
+    },
+    captureHook: (hook: Mocha.Hook) => {
+      const suite = suiteHooksLogs.slice(-1)[0];
+
+      suite.push({ hook, logs: [] });
+
+      mock();
+    },
+    stopHookCapture: () => {
+      const suite = suiteHooksLogs.slice(-1)[0];
+      const hook = suite.slice(-1)[0];
+
+      hook.logs = calls;
+
+      restore();
+    },
+    captureTest: () => {
+      mock();
+    },
+    stopTestCapture: (): TestCapture => {
+      const testLogs = calls;
+
+      restore();
+
+      console.log({ suiteHooksLogs, testLogs });
+
+      const hooks = ([] as any[]).concat(...suiteHooksLogs);
+
+      return {
+        hooks,
+        testLogs,
+      };
+    },
   };
 };
 
@@ -79,20 +128,32 @@ class MyReporter extends Spec {
     epilogue(this, this.failuresLogs);
   }
 
-  failuresLogs: CapturedLog[][];
+  failuresLogs: TestCapture[];
 
   constructor(runner: Mocha.Runner) {
-    let stub: ReturnType<typeof stubLogs>;
+    const stub = stubLogs();
 
     runner
+      .on(EVENT_SUITE_BEGIN, (suite) => {
+        stub.pushSuite();
+      })
+      .on(EVENT_SUITE_END, () => {
+        stub.popSuite();
+      })
+      .on(EVENT_HOOK_BEGIN, (hook) => {
+        stub.captureHook(hook);
+      })
+      .on(EVENT_HOOK_END, () => {
+        stub.stopHookCapture();
+      })
       .on(EVENT_TEST_BEGIN, () => {
-        stub = stubLogs();
+        stub.captureTest();
       })
       .on(EVENT_TEST_PASS, (test) => {
-        stub.restore();
+        stub.stopTestCapture();
       })
       .on(EVENT_TEST_FAIL, (test, err) => {
-        this.failuresLogs.push(stub.restore());
+        this.failuresLogs.push(stub.stopTestCapture());
       });
 
     super(runner);
@@ -109,7 +170,7 @@ type ExtendedError = Omit<Mocha.Test, "err"> & {
 
 // Mostly copied from mocha/lib/reporters/base.js
 
-function list(failures: Array<ExtendedError>, capturedLogs: CapturedLog[][]) {
+function list(failures: Array<ExtendedError>, capturedLogs: TestCapture[]) {
   var multipleErr: any, multipleTest: any;
   Base.consoleLog();
   failures.forEach(function (test, i) {
@@ -187,25 +248,49 @@ function list(failures: Array<ExtendedError>, capturedLogs: CapturedLog[][]) {
   });
 }
 
-function showCapturedOutput(captured: CapturedLog[]) {
+function showCapturedOutput(captured: TestCapture) {
   const indent = "     ";
+  const infoColor = "error stack";
 
   const formatLog = (log: CapturedLog) =>
     indent +
     (log.kind === "stdout" ? log.text : color("error message", log.text));
 
-  if (captured.length) {
+  const hasHookLogs = captured.hooks.find((h) => h.logs.length);
+  const hasTestLogs = !!captured.testLogs.length;
+
+  if (hasHookLogs) {
+    Base.consoleLog(
+      ...captured.hooks.map(({ hook, logs }) =>
+        [
+          indent +
+            color(
+              infoColor,
+              `Captured hook output (${hook.title} of "${
+                hook.parent?.title || "root"
+              }")\n`
+            ),
+          logs.map(formatLog).join(""),
+        ].join("")
+      )
+    );
+  }
+
+  if (hasTestLogs) {
     Base.consoleLog(
       [
         indent + color("error stack", "Captured test output:\n"),
-        captured.map(formatLog).join(""),
-        indent + color("error stack", "End test output\n"),
+        captured.testLogs.map(formatLog).join(""),
       ].join("")
     );
   }
+
+  if (hasHookLogs || hasTestLogs) {
+    Base.consoleLog(indent + color("error stack", "End captured output"));
+  }
 }
 
-function epilogue(report: any, capturedLogs: CapturedLog[][]) {
+function epilogue(report: any, capturedLogs: TestCapture[]) {
   var stats = report.stats;
   var fmt;
 
