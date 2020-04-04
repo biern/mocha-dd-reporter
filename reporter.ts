@@ -1,5 +1,3 @@
-// https://github.com/mochajs/mocha/issues/1998
-
 import Mocha from "mocha";
 
 type BaseMod = {
@@ -192,6 +190,44 @@ class MyReporter extends Spec {
   }
 }
 
+function showCapturedOutput(captured: TestCapture) {
+  const indent = "     ";
+  const infoColor = "error stack";
+
+  const formatLog = (log: CapturedLog) =>
+    indent +
+    (log.kind === "stdout" ? log.text : color("error message", log.text));
+
+  const hasHookLogs = captured.hooks.find((h) => h.logs.length);
+  const hasTestLogs = !!captured.testLogs.length;
+
+  if (hasHookLogs) {
+    captured.hooks.forEach(({ hook, logs }) => {
+      process.stdout.write(
+        indent +
+          color(
+            infoColor,
+            `Captured output of ${hook.title} in "${
+              hook.parent?.title || "root"
+            }")\n`
+          )
+      );
+      logs.forEach((l) => process.stdout.write(formatLog(l)));
+    });
+  }
+
+  if (hasTestLogs) {
+    process.stdout.write(indent + color(infoColor, "Captured test output\n"));
+    captured.testLogs.forEach((l) => process.stdout.write(formatLog(l)));
+  }
+
+  if (hasHookLogs || hasTestLogs) {
+    Base.consoleLog(indent + color(infoColor, "End captured output"));
+  } else {
+    Base.consoleLog(indent + color(infoColor, "No captured output"));
+  }
+}
+
 type ExtendedError = Omit<Mocha.Test, "err"> & {
   err?: Mocha.Test["err"] & {
     multiple?: Array<NonNullable<Mocha.Test["err"]>>;
@@ -276,44 +312,6 @@ function list(failures: Array<ExtendedError>, capturedLogs: TestCapture[]) {
 
     showCapturedOutput(capturedLogs[i]);
   });
-}
-
-function showCapturedOutput(captured: TestCapture) {
-  const indent = "     ";
-  const infoColor = "error stack";
-
-  const formatLog = (log: CapturedLog) =>
-    indent +
-    (log.kind === "stdout" ? log.text : color("error message", log.text));
-
-  const hasHookLogs = captured.hooks.find((h) => h.logs.length);
-  const hasTestLogs = !!captured.testLogs.length;
-
-  if (hasHookLogs) {
-    captured.hooks.forEach(({ hook, logs }) => {
-      process.stdout.write(
-        indent +
-          color(
-            infoColor,
-            `Captured output of ${hook.title} in "${
-              hook.parent?.title || "root"
-            }")\n`
-          )
-      );
-      logs.forEach((l) => process.stdout.write(formatLog(l)));
-    });
-  }
-
-  if (hasTestLogs) {
-    process.stdout.write(indent + color(infoColor, "Captured test output\n"));
-    captured.testLogs.forEach((l) => process.stdout.write(formatLog(l)));
-  }
-
-  if (hasHookLogs || hasTestLogs) {
-    Base.consoleLog(indent + color(infoColor, "End captured output"));
-  } else {
-    Base.consoleLog(indent + color(infoColor, "No captured output"));
-  }
 }
 
 function epilogue(report: any, capturedLogs: TestCapture[]) {
