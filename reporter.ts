@@ -138,9 +138,10 @@ const stubLogs = () => {
 
       restore();
 
-      const hooks = ([] as any[])
+      const hooks = ([] as HookLogs[])
         .concat(...suiteHooksLogs)
-        .concat(...beforeEach);
+        .concat(...beforeEach)
+        .filter(({ logs }) => logs.length > 0);
 
       beforeEach = [];
 

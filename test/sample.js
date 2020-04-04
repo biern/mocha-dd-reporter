@@ -130,3 +130,18 @@ context("Suite with before and nested context", () => {
     });
   });
 });
+
+context("Hooks with no logs", () => {
+  before(() => {});
+
+  beforeEach(() => {});
+
+  beforeEach(() => {
+    console.log("before log");
+  });
+
+  it("Fails", () => {
+    console.log("Fail");
+    throw Error("Sample error");
+  });
+});
