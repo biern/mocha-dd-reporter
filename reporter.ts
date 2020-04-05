@@ -16,8 +16,8 @@ type BaseMod = {
   generateDiff: (actual: any, expected: any) => string;
 };
 
-const Base: BaseMod = require("./vendor/mocha-reporters/base");
-const Spec: any = require("./vendor/mocha-reporters/spec");
+const Base: BaseMod = require("mocha/lib/reporters/base");
+const Spec: any = require("mocha/lib/reporters/spec");
 const milliseconds = require("ms");
 const color = Base.color;
 
