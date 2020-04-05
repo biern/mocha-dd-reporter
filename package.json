@@ -4,11 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "compile+test": "tsc && npm run test",
-    "compile+sample": "tsc && npm run sample",
+    "test": "npm run compile && mocha test/run.js",
     "compile": "tsc",
-    "test": "mocha test/run.js",
-    "sample": "mocha --reporter reporter.js test/sample.js"
+    "sample": "npm run compile && mocha --reporter reporter.js test/sample.js"
   },
   "author": "Marcin Biernat <mb@marcinbiernat.pl> (https://marcinbiernat.pl)",
   "license": "ISC",
