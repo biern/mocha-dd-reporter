@@ -10,6 +10,10 @@
   },
   "author": "Marcin Biernat <mb@marcinbiernat.pl> (https://marcinbiernat.pl)",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/biern/mocha-dd-reporter"
+  },
   "peerDependencies": {
     "mocha": "7.x"
   },
