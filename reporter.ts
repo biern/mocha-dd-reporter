@@ -22,10 +22,7 @@ const milliseconds = require("ms");
 const color = Base.color;
 
 const {
-  EVENT_RUN_BEGIN,
-  EVENT_RUN_END,
   EVENT_TEST_BEGIN,
-  EVENT_TEST_PENDING,
   EVENT_TEST_FAIL,
   EVENT_TEST_PASS,
   EVENT_SUITE_BEGIN,
@@ -40,146 +37,132 @@ type CapturedLog =
 
 type HookLogs = { hook: Mocha.Hook; logs: CapturedLog[] };
 
-type TestCapture = {
+type TestCaptureLogs = {
   hooks: HookLogs[];
-  testLogs: CapturedLog[];
+  test: CapturedLog[];
 };
 
-// TODO: class
-const stubLogs = () => {
-  let mockDepth = 0;
-  let isTestCapture = false;
-  let beforeEach: HookLogs[] = [];
+class TestCapture {
+  mockDepth = 0;
+  isTestCapture = false;
+  beforeEach: HookLogs[] = [];
+  suiteHooksLogs: HookLogs[][] = [];
+  captured: CapturedLog[] = [];
 
-  const suiteHooksLogs: HookLogs[][] = [];
+  stdoutWrite?: NodeJS.WriteStream["write"];
+  stderrWrite?: NodeJS.WriteStream["write"];
 
-  const stdoutWrite = process.stdout.write;
-  const stderrWrite = process.stderr.write;
+  popSuite = () => {
+    this.suiteHooksLogs.pop();
+  };
 
-  let calls: CapturedLog[] = [];
+  pushSuite = () => {
+    this.suiteHooksLogs.push([]);
+  };
 
-  const mockWrite = (kind: CapturedLog["kind"]) => (
+  captureHook = (hook: Mocha.Hook) => {
+    if (!this.isTestCapture) {
+      const suite = this.suiteHooksLogs.slice(-1)[0];
+
+      suite.push({ hook, logs: [] });
+    } else {
+      this.beforeEach.push({ hook, logs: [] });
+    }
+
+    this.mock();
+  };
+
+  stopHookCapture = () => {
+    if (!this.isTestCapture) {
+      const suite = this.suiteHooksLogs.slice(-1)[0];
+      const hook = suite.slice(-1)[0];
+
+      hook.logs = this.captured;
+    } else {
+      const hook = this.beforeEach.slice(-1)[0];
+      hook.logs = this.captured;
+    }
+
+    this.restore();
+  };
+
+  captureTest = () => {
+    this.isTestCapture = true;
+
+    this.mock();
+  };
+
+  stopTestCapture = (): TestCaptureLogs => {
+    this.isTestCapture = false;
+
+    const testLogs = this.captured.filter((l) => !isLogIgnored(l));
+
+    this.restore();
+
+    const hooks = ([] as HookLogs[])
+      .concat(...this.suiteHooksLogs)
+      .concat(...this.beforeEach)
+      .filter(({ logs }) => logs.length > 0);
+
+    this.beforeEach = [];
+
+    return {
+      hooks,
+      test: testLogs,
+    };
+  };
+
+  protected restore = () => {
+    this.mockDepth -= 1;
+
+    if (!this.mockDepth) {
+      process.stdout.write = this.stdoutWrite!;
+      process.stderr.write = this.stderrWrite!;
+    }
+
+    this.captured = [];
+  };
+
+  protected mock = () => {
+    if (!this.mockDepth) {
+      this.stdoutWrite = process.stdout.write;
+      this.stderrWrite = process.stderr.write;
+      process.stdout.write = this.mockWrite("stdout");
+      process.stderr.write = this.mockWrite("stderr");
+    }
+
+    this.mockDepth += 1;
+  };
+
+  protected mockWrite = (kind: CapturedLog["kind"]) => (
     buffer: Uint8Array,
     encoding: unknown
   ) => {
-    const text =
-      typeof encoding === "string"
-        ? buffer.toString() // TODO handle encoding
-        : buffer.toString();
-
-    calls.push({ kind, text });
+    const text = buffer.toString(); // TODO handle encoding
+    this.captured.push({ kind, text });
     return true;
   };
-
-  const restore = () => {
-    mockDepth -= 1;
-
-    if (!mockDepth) {
-      process.stdout.write = stdoutWrite;
-      process.stderr.write = stderrWrite;
-    }
-
-    calls = [];
-  };
-
-  const mock = () => {
-    if (!mockDepth) {
-      process.stdout.write = mockWrite("stdout");
-      process.stderr.write = mockWrite("stderr");
-    }
-
-    mockDepth += 1;
-  };
-
-  return {
-    popSuite: () => {
-      suiteHooksLogs.pop();
-    },
-    pushSuite: () => {
-      suiteHooksLogs.push([]);
-    },
-    captureHook: (hook: Mocha.Hook) => {
-      if (!isTestCapture) {
-        const suite = suiteHooksLogs.slice(-1)[0];
-
-        suite.push({ hook, logs: [] });
-      } else {
-        beforeEach.push({ hook, logs: [] });
-      }
-
-      mock();
-    },
-    stopHookCapture: () => {
-      if (!isTestCapture) {
-        const suite = suiteHooksLogs.slice(-1)[0];
-        const hook = suite.slice(-1)[0];
-
-        hook.logs = calls;
-      } else {
-        const hook = beforeEach.slice(-1)[0];
-        hook.logs = calls;
-      }
-
-      restore();
-    },
-    captureTest: () => {
-      isTestCapture = true;
-
-      mock();
-    },
-    stopTestCapture: (): TestCapture => {
-      isTestCapture = false;
-
-      const testLogs = calls.filter((l) => !isLogIgnored(l));
-
-      restore();
-
-      const hooks = ([] as HookLogs[])
-        .concat(...suiteHooksLogs)
-        .concat(...beforeEach)
-        .filter(({ logs }) => logs.length > 0);
-
-      beforeEach = [];
-
-      return {
-        hooks,
-        testLogs,
-      };
-    },
-  };
-};
+}
 
 class DDReporter extends Spec {
   epilogue() {
     epilogue(this, this.failuresLogs);
   }
 
-  failuresLogs: TestCapture[];
+  failuresLogs: TestCaptureLogs[];
 
   constructor(runner: Mocha.Runner) {
-    const stub = stubLogs();
+    const testCapture = new TestCapture();
 
     runner
-      .on(EVENT_SUITE_BEGIN, (suite) => {
-        stub.pushSuite();
-      })
-      .on(EVENT_SUITE_END, () => {
-        stub.popSuite();
-      })
-      .on(EVENT_HOOK_BEGIN, (hook) => {
-        stub.captureHook(hook);
-      })
-      .on(EVENT_HOOK_END, () => {
-        stub.stopHookCapture();
-      })
-      .on(EVENT_TEST_BEGIN, () => {
-        stub.captureTest();
-      })
-      .on(EVENT_TEST_PASS, (test) => {
-        stub.stopTestCapture();
-      })
-      .on(EVENT_TEST_FAIL, (test, err) => {
-        this.failuresLogs.push(stub.stopTestCapture());
+      .on(EVENT_SUITE_BEGIN, testCapture.pushSuite)
+      .on(EVENT_SUITE_END, testCapture.popSuite)
+      .on(EVENT_HOOK_BEGIN, testCapture.captureHook)
+      .on(EVENT_HOOK_END, testCapture.stopHookCapture)
+      .on(EVENT_TEST_BEGIN, testCapture.captureTest)
+      .on(EVENT_TEST_PASS, testCapture.stopTestCapture)
+      .on(EVENT_TEST_FAIL, () => {
+        this.failuresLogs.push(testCapture.stopTestCapture());
       });
 
     super(runner);
@@ -188,7 +171,7 @@ class DDReporter extends Spec {
   }
 }
 
-function showCapturedOutput(captured: TestCapture) {
+function showCapturedOutput(captured: TestCaptureLogs) {
   const indent = "     ";
   const infoColor = "error stack";
 
@@ -197,7 +180,7 @@ function showCapturedOutput(captured: TestCapture) {
     (log.kind === "stdout" ? log.text : color("error message", log.text));
 
   const hasHookLogs = captured.hooks.find((h) => h.logs.length);
-  const hasTestLogs = !!captured.testLogs.length;
+  const hasTestLogs = !!captured.test.length;
 
   if (hasHookLogs) {
     captured.hooks.forEach(({ hook, logs }) => {
@@ -216,7 +199,7 @@ function showCapturedOutput(captured: TestCapture) {
 
   if (hasTestLogs) {
     process.stdout.write(indent + color(infoColor, "Captured test output\n"));
-    captured.testLogs.forEach((l) => process.stdout.write(formatLog(l)));
+    captured.test.forEach((l) => process.stdout.write(formatLog(l)));
   }
 
   if (hasHookLogs || hasTestLogs) {
@@ -237,7 +220,7 @@ type ExtendedError = Omit<Mocha.Test, "err"> & {
 
 // Mostly copied from mocha/lib/reporters/base.js
 
-function list(failures: Array<ExtendedError>, capturedLogs: TestCapture[]) {
+function list(failures: Array<ExtendedError>, capturedLogs: TestCaptureLogs[]) {
   var multipleErr: any, multipleTest: any;
   Base.consoleLog();
   failures.forEach(function (test, i) {
@@ -315,7 +298,7 @@ function list(failures: Array<ExtendedError>, capturedLogs: TestCapture[]) {
   });
 }
 
-function epilogue(report: any, capturedLogs: TestCapture[]) {
+function epilogue(report: any, capturedLogs: TestCaptureLogs[]) {
   var stats = report.stats;
   var fmt;
 
