@@ -1,3 +1,5 @@
+const snap = require("snap-shot-it");
+
 context("Testing logs", () => {
   it("Successfull test", () => {
     console.log("Should not be visible");
@@ -143,5 +145,15 @@ context("Hooks with no logs", () => {
   it("Fails", () => {
     console.log("Fail");
     throw Error("Sample error");
+  });
+});
+
+context("Snapshots", () => {
+  it("Error", () => {
+    if (process.env.SNAPSHOT_UPDATE === "1") {
+      snap("Value A");
+    } else {
+      snap("Value B");
+    }
   });
 });

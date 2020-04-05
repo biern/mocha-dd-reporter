@@ -7,7 +7,10 @@ const exec = util.promisify(childProcess.exec);
 it("Report", async () => {
   try {
     const { stdout, stderr } = await exec(
-      "npx mocha --reporter ./reporter.js ./test/sample.js"
+      "npx mocha --reporter ./reporter.js ./test/sample.js",
+      {
+        env: { SNAPSHOT_UPDATE: undefined },
+      }
     );
     console.log("Test stdout:");
     console.log(stdout);

@@ -130,7 +130,7 @@ const stubLogs = () => {
     stopTestCapture: (): TestCapture => {
       isTestCapture = false;
 
-      const testLogs = calls;
+      const testLogs = calls.filter((l) => !isLogIgnored(l));
 
       restore();
 
@@ -225,6 +225,9 @@ function showCapturedOutput(captured: TestCapture) {
     process.stdout.write(indent + color(infoColor, "No captured output\n"));
   }
 }
+
+const isLogIgnored = (log: CapturedLog) =>
+  log.text.startsWith("Different value of snapshot");
 
 type ExtendedError = Omit<Mocha.Test, "err"> & {
   err?: Mocha.Test["err"] & {
