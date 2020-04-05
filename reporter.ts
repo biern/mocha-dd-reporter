@@ -31,6 +31,32 @@ const {
   EVENT_HOOK_END,
 } = Mocha.Runner.constants;
 
+class DDReporter extends Spec {
+  failuresLogs: TestCaptureLogs[];
+
+  constructor(runner: Mocha.Runner) {
+    const testCapture = new TestCapture();
+
+    runner
+      .on(EVENT_SUITE_BEGIN, testCapture.pushSuite)
+      .on(EVENT_SUITE_END, testCapture.popSuite)
+      .on(EVENT_HOOK_BEGIN, testCapture.captureHook)
+      .on(EVENT_HOOK_END, testCapture.stopHookCapture)
+      .on(EVENT_TEST_BEGIN, testCapture.captureTest)
+      .on(EVENT_TEST_PASS, testCapture.stopTestCapture)
+      .on(EVENT_TEST_FAIL, () => {
+        this.failuresLogs.push(testCapture.stopTestCapture());
+      });
+
+    super(runner);
+
+    this.failuresLogs = [];
+  }
+
+  epilogue() {
+    epilogue(this, this.failuresLogs);
+  }
+}
 type CapturedLog =
   | { kind: "stdout"; text: string }
   | { kind: "stderr"; text: string };
@@ -142,33 +168,6 @@ class TestCapture {
     this.captured.push({ kind, text });
     return true;
   };
-}
-
-class DDReporter extends Spec {
-  epilogue() {
-    epilogue(this, this.failuresLogs);
-  }
-
-  failuresLogs: TestCaptureLogs[];
-
-  constructor(runner: Mocha.Runner) {
-    const testCapture = new TestCapture();
-
-    runner
-      .on(EVENT_SUITE_BEGIN, testCapture.pushSuite)
-      .on(EVENT_SUITE_END, testCapture.popSuite)
-      .on(EVENT_HOOK_BEGIN, testCapture.captureHook)
-      .on(EVENT_HOOK_END, testCapture.stopHookCapture)
-      .on(EVENT_TEST_BEGIN, testCapture.captureTest)
-      .on(EVENT_TEST_PASS, testCapture.stopTestCapture)
-      .on(EVENT_TEST_FAIL, () => {
-        this.failuresLogs.push(testCapture.stopTestCapture());
-      });
-
-    super(runner);
-
-    this.failuresLogs = [];
-  }
 }
 
 function showCapturedOutput(captured: TestCaptureLogs) {
