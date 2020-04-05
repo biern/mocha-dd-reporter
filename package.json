@@ -1,5 +1,5 @@
 {
-  "name": "mocha-suppress-stdout",
+  "name": "mocha-dd-reporter",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -10,18 +10,24 @@
     "test": "mocha test/run.js",
     "sample": "mocha --reporter reporter.js test/sample.js"
   },
-  "author": "",
+  "author": "Marcin Biernat <mb@marcinbiernat.pl> (https://marcinbiernat.pl)",
   "license": "ISC",
-  "dependencies": {
-    "mocha": "^7.1.1"
+  "peerDependencies": {
+    "mocha": "7.x"
   },
   "devDependencies": {
     "@types/mocha": "^7.0.2",
     "@types/node": "^13.9.3",
     "@types/sinon": "^7.5.2",
+    "mocha": "^7.1.1",
+    "np": "^6.2.0",
     "prettier": "^2.0.1",
     "sinon": "^9.0.1",
     "snap-shot-it": "^7.9.3",
     "typescript": "^3.8.3"
-  }
+  },
+  "files": [
+    "index.js",
+    "reporter.js"
+  ]
 }
