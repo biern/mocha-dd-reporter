@@ -11,13 +11,14 @@ type BaseMod = {
     bang: string;
   };
   epilogue: () => void;
-  stringifyDiffObjs: (err: Mocha.Test["err"]) => string;
   showDiff: (err: Mocha.Test["err"]) => string;
   generateDiff: (actual: any, expected: any) => string;
 };
 
 const Base: BaseMod = require("mocha/lib/reporters/base");
 const Spec: any = require("mocha/lib/reporters/spec");
+const utils: any = require("mocha/lib/utils");
+
 const milliseconds = require("ms");
 const color = Base.color;
 
@@ -267,7 +268,7 @@ function list(failures: Array<ExtendedError>, capturedLogs: TestCaptureLogs[]) {
     }
     // explicitly show diff
     if (!exports.hideDiff && Base.showDiff(err)) {
-      Base.stringifyDiffObjs(err);
+      stringifyDiffObjs(err);
       fmt =
         color("error title", "  %s) %s:\n%s") + color("error stack", "\n%s\n");
       var match = message.match(/^([^:]+): expected/);
@@ -329,6 +330,13 @@ function epilogue(report: any, capturedLogs: TestCaptureLogs[]) {
   }
 
   Base.consoleLog();
+}
+
+function stringifyDiffObjs(err: any) {
+  if (!utils.isString(err.actual) || !utils.isString(err.expected)) {
+    err.actual = utils.stringify(err.actual);
+    err.expected = utils.stringify(err.expected);
+  }
 }
 
 export = DDReporter;
