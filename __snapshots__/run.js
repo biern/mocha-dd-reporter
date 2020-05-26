@@ -37,9 +37,12 @@ exports['Report 1'] = `
   Snapshots
     18) Error
 
+  Suite with error in second beforeEach
+    19) "before each" hook for "Would fail"
+
 
   1 passing (100ms)
-  18 failing
+  19 failing
 
   1) Testing logs
        Failing test:
@@ -259,6 +262,17 @@ exports['Report 1'] = `
       at processImmediate (internal/timers.js:456:21)
 
      No captured output
+  19) Suite with error in second beforeEach
+       "before each" hook for "Would fail":
+     Error: Before error
+      at Context.<anonymous> (test/sample.js:168:11)
+      at processImmediate (internal/timers.js:456:21)
+
+     Captured output of "before each" hook in "Suite with error in second beforeEach")
+     beforeEach 1
+     Captured test output
+     beforeEach 2
+     End captured output
 
 
 

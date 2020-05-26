@@ -157,3 +157,21 @@ context("Snapshots", () => {
     }
   });
 });
+
+context("Suite with error in second beforeEach", () => {
+  beforeEach(() => {
+    console.log("beforeEach 1");
+  });
+
+  beforeEach(() => {
+    console.log("beforeEach 2");
+    throw Error("Before error");
+  });
+
+  it("Would fail", () => {
+    console.log("Fail in test");
+    throw Error("Sample error");
+  });
+
+  it("Would pass", () => {});
+});

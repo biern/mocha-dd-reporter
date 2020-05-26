@@ -124,7 +124,7 @@ class TestCapture {
 
     const testLogs = this.captured.filter((l) => !isLogIgnored(l));
 
-    this.restore();
+    this.restore(true);
 
     const hooks = ([] as HookLogs[])
       .concat(...this.suiteHooksLogs)
@@ -139,10 +139,11 @@ class TestCapture {
     };
   };
 
-  protected restore = () => {
+  protected restore = (force = false) => {
     this.mockDepth -= 1;
 
-    if (!this.mockDepth) {
+    if (!this.mockDepth || force) {
+      this.mockDepth = 0;
       process.stdout.write = this.stdoutWrite!;
       process.stderr.write = this.stderrWrite!;
     }
