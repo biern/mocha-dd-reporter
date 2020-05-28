@@ -4,6 +4,10 @@
 
 [![NPM][npm-icon] ][npm-url]
 
+## Example
+
+![example](https://github.com/biern/mocha-dd-reporter/blob/master/docs/example.png?raw=true)
+
 ## Why
 
 Output emitted during a test may carry helpful insights on what went wrong. Default mocha reporter displays test error message at the bottom, while logs emitted during that test end up somewhere in the middle of the report, along with logs emitted during all other tests. This is unfortunate and makes finding specific test output inconvenient, specially if there are a lot of tests and report is long.

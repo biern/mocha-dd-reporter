@@ -7,7 +7,8 @@
     "test": "npm run compile && mocha test/run.js",
     "compile": "tsc",
     "sample": "npm run compile && mocha --reporter reporter.js test/sample.js",
-    "publish": "np"
+    "publish": "np",
+    "example": "mocha --reporter ./reporter.js ./test/example.js"
   },
   "author": "Marcin Biernat <mb@marcinbiernat.pl> (https://marcinbiernat.pl)",
   "license": "ISC",
