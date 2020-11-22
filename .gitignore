@@ -1,3 +1,4 @@
 reporter.js
 index.js
+*.d.ts
 node_modules

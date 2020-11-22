@@ -32,8 +32,39 @@ const {
   EVENT_HOOK_END,
 } = Mocha.Runner.constants;
 
+let _skipCaptureStack: Array<{ reason: string | undefined }> = [];
+
+const shoudSkipCapture = () =>
+  _skipCaptureStack.length > 0
+    ? _skipCaptureStack[_skipCaptureStack.length - 1]
+    : undefined;
+
 class DDReporter extends Spec {
   failuresLogs: TestCaptureLogs[];
+
+  static withSkipTestLogCapture<F extends () => any>(
+    func: F,
+    reason?: string
+  ): ReturnType<F> {
+    try {
+      _skipCaptureStack.push({ reason });
+      return func();
+    } finally {
+      _skipCaptureStack.pop();
+    }
+  }
+
+  static async withSkipTestLogCaptureAsync<F extends () => Promise<any>>(
+    func: F,
+    reason?: string
+  ): Promise<ReturnType<F>> {
+    try {
+      _skipCaptureStack.push({ reason });
+      return await func();
+    } finally {
+      _skipCaptureStack.pop();
+    }
+  }
 
   constructor(runner: Mocha.Runner) {
     const testCapture = new TestCapture();
@@ -60,7 +91,8 @@ class DDReporter extends Spec {
 }
 type CapturedLog =
   | { kind: "stdout"; text: string }
-  | { kind: "stderr"; text: string };
+  | { kind: "stderr"; text: string }
+  | { kind: "skipped"; reason?: string; count: number };
 
 type HookLogs = { hook: Mocha.Hook; logs: CapturedLog[] };
 
@@ -162,12 +194,24 @@ class TestCapture {
     this.mockDepth += 1;
   };
 
-  protected mockWrite = (kind: CapturedLog["kind"]) => (
+  protected mockWrite = (kind: "stdout" | "stderr") => (
     buffer: Uint8Array,
     encoding: unknown
   ) => {
-    const text = buffer.toString(); // TODO handle encoding
-    this.captured.push({ kind, text });
+    const skip = shoudSkipCapture();
+
+    if (skip) {
+      const last = this.captured[this.captured.length - 1];
+
+      if (last && last.kind === "skipped") {
+        last.count += 1;
+      } else {
+        this.captured.push({ kind: "skipped", reason: skip.reason, count: 1 });
+      }
+    } else {
+      const text = buffer.toString(); // TODO handle encoding
+      this.captured.push({ kind, text });
+    }
     return true;
   };
 }
@@ -178,7 +222,16 @@ function showCapturedOutput(captured: TestCaptureLogs) {
 
   const formatLog = (log: CapturedLog) =>
     indent +
-    (log.kind === "stdout" ? log.text : color("error message", log.text));
+    (log.kind === "skipped"
+      ? color(
+          infoColor,
+          `...skipped ${log.count} lines ` +
+            (log.reason ? `(${log.reason})` : ``) +
+            `...\n`
+        )
+      : log.kind === "stdout"
+      ? log.text
+      : color("error message", log.text));
 
   const hasHookLogs = captured.hooks.find((h) => h.logs.length);
   const hasTestLogs = !!captured.test.length;
@@ -211,7 +264,7 @@ function showCapturedOutput(captured: TestCaptureLogs) {
 }
 
 const isLogIgnored = (log: CapturedLog) =>
-  log.text.startsWith("Different value of snapshot");
+  "text" in log && log.text.startsWith("Different value of snapshot");
 
 type ExtendedError = Omit<Mocha.Test, "err"> & {
   err?: Mocha.Test["err"] & {

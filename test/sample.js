@@ -1,3 +1,4 @@
+const Reporter = require("../");
 const snap = require("snap-shot-it");
 
 context("Testing logs", () => {
@@ -174,4 +175,31 @@ context("Suite with error in second beforeEach", () => {
   });
 
   it("Would pass", () => {});
+});
+
+context("Suite with withSkipTestLogCaptureAsync", () => {
+  beforeEach(async () => {
+    await Reporter.withSkipTestLogCaptureAsync(async () => {
+      console.log("spam");
+      console.log("spam");
+      console.log("spam");
+
+      await new Promise((res) => setTimeout(res, 100));
+
+      await Reporter.withSkipTestLogCaptureAsync(async () => {
+        console.log("spam");
+        console.log("spam");
+        console.log("spam");
+      }, "just nested spam");
+
+      console.log("spam");
+      console.log("spam");
+      console.log("spam");
+    }, "just spam");
+  });
+
+  it("Would fail", () => {
+    console.log("Fail in test");
+    throw Error("Sample error");
+  });
 });

@@ -40,9 +40,12 @@ exports['Report 1'] = `
   Suite with error in second beforeEach
     19) "before each" hook for "Would fail"
 
+  Suite with withSkipTestLogCaptureAsync
+    20) Would fail
+
 
   1 passing (100ms)
-  19 failing
+  20 failing
 
   1) Testing logs
        Failing test:
@@ -272,6 +275,16 @@ exports['Report 1'] = `
      beforeEach 1
      Captured test output
      beforeEach 2
+     End captured output
+  20) Suite with withSkipTestLogCaptureAsync
+       Would fail:
+     Error: Sample error
+      at Context.<anonymous> (test/sample.js:203:11)
+
+     Captured output of "before each" hook in "Suite with withSkipTestLogCaptureAsync")
+     ...skipped 9 lines (just spam)...
+     Captured test output
+     Fail in test
      End captured output
 
 
