@@ -15,7 +15,7 @@ it("Report", async () => {
     console.log("Test stdout:");
     console.log(stdout);
   } catch (e) {
-    snap(e.stdout.replace(/\d+ms/, "100ms"));
+    snap(e.stdout.replace(/\d+ms/, "100ms").replace(/\:\d+\:\d+/g, ":..."));
     return;
   }
 
